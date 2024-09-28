@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Електронний Цифровий Підпис (ЕЦП)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/forge/0.10.0/forge.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #5b5959;
+        padding: 20px;
+      }
+      .container {
+        max-width: 700px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      textarea,
+      input {
+        width: 100%;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+      }
+      input {
+        padding: 5px 10px;
+      }
+      button {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      .output {
+        margin-top: 20px;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        overflow-wrap: break-word;
+      }
+      .info {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #eef;
+        border: 1px solid #ccd;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Електронний Цифровий Підпис (ЕЦП)</h2>
+
+      <textarea id="inputData" placeholder="Введіть дані для підпису"></textarea>
+
+      <button onclick="generateKeys()">Згенерувати ключі</button>
+      <button onclick="signData()">Підписати дані</button>
+      <button onclick="verifySignature()">Перевірити підпис</button>
+
+      <div class="output" id="outputText"></div>
+
+      <!-- Додаткове вікно з поясненням -->
+      <div class="info" id="infoBox">
+        <h3>Інформація про ключі та підпис</h3>
+        <p id="infoText">На даний момент не згенеровано ключів або підпису.</p>
+      </div>
+    </div>
+
+    <script>
+      let privateKey, publicKey
+
+      // Функція для генерації ключів RSA
+      function generateKeys() {
+        const rsa = forge.pki.rsa
+        const keypair = rsa.generateKeyPair({ bits: 2048 })
+        privateKey = keypair.privateKey
+        publicKey = keypair.publicKey
+
+        document.getElementById('outputText').innerHTML =
+          '<strong>Ключі згенеровані!</strong><br>Публічний ключ:<br>' +
+          forge.pki.publicKeyToPem(publicKey) +
+          '<br>Приватний ключ:<br>' +
+          forge.pki.privateKeyToPem(privateKey)
+
+        updateInfo('Згенеровано пару ключів. Приватний ключ використовується для підпису даних, а публічний ключ — для перевірки цього підпису.')
+      }
+
+      // Функція для підпису даних
+      function signData() {
+        const data = document.getElementById('inputData').value
+
+        if (!data || !privateKey) {
+          alert('Будь ласка, введіть дані і згенеруйте ключі.')
+          return
+        }
+
+        const md = forge.md.sha256.create()
+        md.update(data, 'utf8')
+        const signature = privateKey.sign(md)
+        const encodedSignature = forge.util.encode64(signature) // Кодування підпису в Base64
+
+        document.getElementById('outputText').innerHTML = '<strong>Підпис даних:</strong><br>' + encodedSignature
+        document.getElementById('outputText').setAttribute('data-signature', encodedSignature)
+
+        updateInfo('Дані підписані приватним ключем. Цей підпис можна перевірити за допомогою публічного ключа.')
+      }
+
+      function verifySignature() {
+        const data = document.getElementById("inputData").value;
+        const signature = document.getElementById("outputText").getAttribute('data-signature');
+
+        if (!data || !signature || !publicKey) {
+            alert("Будь ласка, введіть дані, створіть підпис і згенеруйте ключі.");
+            return;
+        }
+
+        const decodedSignature = forge.util.decode64(signature);
+        const md = forge.md.sha256.create();
+        md.update(data, 'utf8');
+        const isValid = publicKey.verify(md.digest().bytes(), decodedSignature);
+
+        document.getElementById("outputText").innerHTML = isValid
+            ? "<strong>Підпис валідний!</strong>"
+            : "<strong>Підпис невалідний!</strong>";
+
+        updateInfo(isValid ? "Підпис успішно перевірено за допомогою публічного ключа." : "Перевірка підпису не вдалася.");
+    }
+
+    function updateInfo(message) {
+        document.getElementById("infoText").innerText = message;
+    }
+    </script>
+  </body>
+</html>
